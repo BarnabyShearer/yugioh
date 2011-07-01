@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+@author: bWare@iWare.co.uk
+@license: All rights reserved.
+
+-->
+<project
+	default=".svg"
+	basedir="."
+>
+	<taskdef resource="net/sf/antcontrib/antlib.xml"/>
+
+	<target
+		name=".clean.xml"
+	>
+		<for param="file" parallel="true" threadCount="8">
+			<outofdate>
+				<sourcefiles>
+					<fileset dir="">
+						<include name="src/*" />
+					</fileset>
+				</sourcefiles>
+				<mapper type="glob" from="src/*" to="work/*.clean.xml"/>
+			</outofdate>
+			<sequential>
+				<propertyregex
+					property="@{file}"
+					input="@{file}"
+					regexp="src/(.*)"
+                                        replace="work/\1.clean.xml"
+                                />
+				
+				<exec
+					executable="tail"
+					input="@{file}"
+					outputproperty="@{file}_buf"
+				>
+					<arg value="-n+2" />
+				</exec>
+				<exec
+					executable="xmllint"
+					inputstring="${@{file}_buf}"
+					output="${@{file}}"
+					error="/dev/null"
+				>
+					<arg value="--recover" />
+					<arg value="-" />
+				</exec>
+			</sequential>
+                </for>
+
+	</target>
+
+	<target
+		name=".yugioh.xml"
+		depends=".clean.xml"
+	>
+		<xslt
+			style="import.xslt"
+			destdir=""
+			filenameparameter="filename"
+			scanincludeddirectories="false"
+			includes="HACK_NONE"
+		>
+			<factory name="net.sf.saxon.TransformerFactoryImpl" />
+
+			<globmapper from="*.clean.xml" to="*.yugioh.xml"/>
+
+			<fileset dir="">
+				<include name="work/*" />
+			</fileset>
+		</xslt>
+	</target>
+
+	<target
+		name=".img"
+		depends=".yugioh.xml"
+	>
+		<for param="file" parallel="true" threadCount="8">
+			<outofdate>
+				<sourcefiles>
+					<fileset dir="">
+						<include name="work/*.yugioh.xml" />
+					</fileset>
+				</sourcefiles>
+				<mapper type="glob" from="work/*.yugioh.xml" to="build/*.svg"/>
+			</outofdate>
+			<sequential>
+				<xmlproperty file="@{file}" prefix="@{file}"/>
+				<get dest="work" src="${@{file}.yugioh.img}" />
+			</sequential>
+		</for>
+	</target>
+
+	<target
+		name=".svg"
+		depends=".img"
+	>
+		<xslt
+			style="export.xslt"
+			destdir=""
+			filenameparameter="filename"
+			scanincludeddirectories="false"
+			includes="HACK_NONE"
+		>
+			<factory name="net.sf.saxon.TransformerFactoryImpl" />
+
+			<globmapper from="work/*.yugioh.xml" to="build/*.svg"/>
+
+			<fileset dir="">
+				<include name="work/*.yugioh.xml" />
+			</fileset>
+		</xslt>
+	</target>
+</project>
